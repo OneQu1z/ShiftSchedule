@@ -21,7 +21,7 @@ class GoogleSheetsManager:
                 "https://www.googleapis.com/auth/spreadsheets",
                 "https://www.googleapis.com/auth/drive"
             ]
-            creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
+            creds = ServiceAccountCredentials.from_json_keyfile_name("config/credentials.json", scope)
             client = gspread.authorize(creds)
 
             # Проверка существования таблицы "Ответы"

@@ -1,9 +1,9 @@
 import streamlit as st
 import pandas as pd
-from google_utils import GoogleSheetsManager  # Измененный импорт
-from scheduler import generate_schedule, build_schedule_table, count_shifts
-from storage import load_shifts, save_shifts
-from utils import save_schedule_image
+from src.core.google_utils import GoogleSheetsManager  # Измененный импорт
+from src.core.scheduler import generate_schedule, build_schedule_table, count_shifts
+from src.core.storage import load_shifts, save_shifts
+from src.utils.utils import save_schedule_image
 
 # Инициализация менеджера Google Sheets
 gs_manager = GoogleSheetsManager()

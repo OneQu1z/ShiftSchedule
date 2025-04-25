@@ -13,11 +13,11 @@ import os
 from datetime import time
 import pytz
 import pandas as pd  # Добавляем обратно pandas
-from google_utils import GoogleSheetsManager
-from scheduler import generate_schedule, build_schedule_table
-from storage import load_shifts, save_shifts, load_admins, load_notification_time, save_notification_time
-from utils import save_schedule_image
+from src.utils.utils import save_schedule_image
 from dotenv import load_dotenv
+from src.core.google_utils import GoogleSheetsManager
+from src.core.scheduler import generate_schedule, build_schedule_table
+from src.core.storage import load_shifts, save_shifts, load_admins, load_notification_time, save_notification_time
 load_dotenv()  # Загружает переменные из .env
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")  # Безопасное получение токена
 
@@ -30,9 +30,9 @@ logger = logging.getLogger(__name__)
 # Инициализация менеджера Google Sheets
 gs_manager = GoogleSheetsManager()
 
-USERS_FILE = "users.json"
-ADMINS_FILE = "admins.json"
-TIME_FILE = "notification_time.json"
+USERS_FILE = "data/users.json"
+ADMINS_FILE = "data/admins.json"
+TIME_FILE = "config/notification_time.json"
 
 HELP_TEXT = """
 📚 Доступные команды:
