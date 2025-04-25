@@ -1,0 +1,20 @@
+# Файлы с токенами и ключами
+.env
+credentials.json
+*.json
+
+# Виртуальное окружение
+.venv/
+venv/
+
+# Кэш Python
+__pycache__/
+*.py[cod]
+
+# Настройки IDE
+.idea/
+.vscode/
+
+# Логи и временные файлы
+*.log
+*.tmp
