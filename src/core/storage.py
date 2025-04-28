@@ -37,8 +37,9 @@ def save_admin(chat_id):
 def load_notification_time():
     if os.path.exists("../../config/notification_time.json"):
         with open("../../config/notification_time.json", "r") as f:
-            return json.load(f)
-    return {'hours': 21, 'minutes': 56, 'day': 2}  # По умолчанию среда 21:56
+            data = json.load(f)
+            return data['hours'], data['minutes'], data['day']
+    return 18, 0, 4  # Возвращаем значения по умолчанию, если файл не существует
 
 def save_notification_time(hours, minutes, day):
     with open("../../config/notification_time.json", "w") as f:

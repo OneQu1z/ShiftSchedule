@@ -28,6 +28,7 @@ def main():
         app.add_handler(CommandHandler("accept", accept_command))
         app.add_handler(CommandHandler("deny", deny_command))
 
+
         app.add_handler(CallbackQueryHandler(button_handler))
         app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
@@ -36,8 +37,8 @@ def main():
         tz = pytz.timezone('Europe/Moscow')
         app.job_queue.run_daily(
             auto_send_schedule,
-            time=time(hour=notify_time['hours'], minute=notify_time['minutes'], tzinfo=tz),
-            days=(notify_time['day'],)
+            time=time(hour=notify_time[0], minute=notify_time[1], tzinfo=tz),
+            days=(notify_time[2],)
         )
 
         app.run_polling()

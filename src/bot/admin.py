@@ -7,7 +7,7 @@ from telegram.ext import ContextTypes
 from src.bot.scheduler import auto_send_schedule
 from src.bot.user_manager import UserManager
 from src.core.google_utils import GoogleSheetsManager
-from src.core.storage import load_admins, load_shifts, save_shifts, save_notification_time
+from src.core.storage import load_admins, load_shifts, save_shifts, save_notification_time, load_notification_time
 import logging
 
 logger = logging.getLogger(__name__)
@@ -24,6 +24,7 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     keyboard = [
         [InlineKeyboardButton(" Изменить время уведомления", callback_data="change_time")],
+        [InlineKeyboardButton(" Изменить день уведомления", callback_data="change_day")],
         [InlineKeyboardButton("➕ Добавить слоты", callback_data="add_slots")],
         [InlineKeyboardButton(" Очистить таблицу", callback_data="clear_sheet")],
         [InlineKeyboardButton(" Управление", callback_data="management")]  # Новая кнопка
@@ -42,6 +43,9 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if query.data == "change_time":
         await query.edit_message_text("⏰ Введите новое время в формате ЧЧ:ММ (например, 21:30):")
         context.user_data['awaiting_time'] = True
+    elif query.data == "change_day":
+        await query.edit_message_text(" Введите новый день недели (1-7):")
+        context.user_data['awaiting_day'] = True
     elif query.data == "add_slots":
         days = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"]
         keyboard = [[InlineKeyboardButton(day, callback_data=f"add_{i}")] for i, day in enumerate(days)]
@@ -89,7 +93,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             time_str = update.message.text
             hours, minutes = map(int, time_str.split(':'))
             if 0 <= hours < 24 and 0 <= minutes < 60:
-                save_notification_time(hours, minutes, 3)  # По умолчанию среда
+                day = load_notification_time()[2]  # Получаем текущий день уведомления
+
+                save_notification_time(hours, minutes, day)
                 context.user_data.pop('awaiting_time')
                 await update.message.reply_text(f"✅ Время уведомления изменено на {time_str}")
 
@@ -99,15 +105,27 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 context.job_queue.run_daily(
                     auto_send_schedule,
                     time=time(hour=hours, minute=minutes, tzinfo=tz),
-                    days=(3,)
+                    days=(day,)
                 )
             else:
                 await update.message.reply_text("⚠️ Неверный формат времени. Используйте ЧЧ:ММ")
         except ValueError:
             await update.message.reply_text("⚠️ Неверный формат. Используйте ЧЧ:ММ")
 
+    if context.user_data.get('awaiting_day'):
+        try:
+            day_num = int(update.message.text)
+            if 1 <= day_num <= 7:
+                hours = load_notification_time()[0]
+                minutes = load_notification_time()[1]
 
-
+                save_notification_time(hours, minutes, day_num % 7)  # Сохраняем день недели (0-6)
+                context.user_data.pop('awaiting_day')
+                await update.message.reply_text(f"✅ День уведомления изменен на {day_num} день недели")
+            else:
+                await update.message.reply_text("⚠️ Неверный формат дня недели. Используйте число от 1 до 7")
+        except ValueError:
+            await update.message.reply_text("⚠️ Неверный формат. Используйте число от 1 до 7")
 
 # Обработчик команды /accept
 async def accept_command(update: Update, context: ContextTypes.DEFAULT_TYPE):

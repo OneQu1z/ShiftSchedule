@@ -24,6 +24,13 @@ class UserManager:
         except (json.JSONDecodeError, FileNotFoundError):
             return []
 
+    def load_pen_users(self):
+        try:
+            with open(self.pending_users_file, "r") as f:
+                return json.load(f)
+        except (json.JSONDecodeError, FileNotFoundError):
+            return []
+
     def save_user(self, chat_id, username=None, name=None):
         users = self.load_users()
 
