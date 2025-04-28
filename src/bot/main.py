@@ -1,7 +1,8 @@
 import os
 from dotenv import load_dotenv
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, filters
-from src.bot.handlers import start, help_command, schedule, add_slots
+from src.bot.handlers import start, help_command, add_slots, start_shift_exchange, set_fio, \
+    handle_exchange_callback, accept_exchange, show_schedule
 from src.bot.admin import *
 
 load_dotenv()
@@ -21,12 +22,16 @@ def main():
         # Регистрация обработчиков
         app.add_handler(CommandHandler("start", start))
         app.add_handler(CommandHandler("help", help_command))
-        app.add_handler(CommandHandler("schedule", schedule))
+        app.add_handler(CommandHandler("schedule", show_schedule))  # Для пользователей
         app.add_handler(CommandHandler("admin", admin_panel))
         app.add_handler(CommandHandler("clear_sheet", clear_sheet_command))
         app.add_handler(CommandHandler("accept", accept_command))
         app.add_handler(CommandHandler("deny", deny_command))
         app.add_handler(CommandHandler("add_slots", add_slots))
+        app.add_handler(CommandHandler("exchange", start_shift_exchange))
+        app.add_handler(CommandHandler("set_fio", set_fio))
+        app.add_handler(CallbackQueryHandler(handle_exchange_callback, pattern="^exch_"))
+        app.add_handler(CommandHandler("accept_exchange", accept_exchange))
 
         app.add_handler(CallbackQueryHandler(button_handler))
         app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))

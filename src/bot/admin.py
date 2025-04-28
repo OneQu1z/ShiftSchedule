@@ -1,5 +1,6 @@
 from datetime import time
 
+import pandas as pd
 import pytz
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
@@ -7,8 +8,9 @@ from telegram.ext import ContextTypes
 from src.bot.utils import auto_send_schedule
 from src.bot.user_manager import UserManager
 from src.core.google_utils import GoogleSheetsManager
+from src.core.scheduler import generate_schedule
 from src.core.storage import load_admins, load_shifts, save_notification_time, load_notification_time, \
-    reset_shifts, save_shifts
+    reset_shifts, save_shifts, save_schedule
 import logging
 
 logger = logging.getLogger(__name__)
@@ -24,6 +26,7 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     keyboard = [
+        [InlineKeyboardButton("🔄 Пересчитать расписание", callback_data="generate_schedule")],
         [InlineKeyboardButton(" Изменить время уведомления", callback_data="change_time")],
         [InlineKeyboardButton(" Изменить день уведомления", callback_data="change_day")],
         [InlineKeyboardButton("➕ Добавить слоты", callback_data="add_slots")],
@@ -41,8 +44,25 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     query = update.callback_query
     await query.answer()
+    if query.data == "generate_schedule":
+        try:
+            # Получаем данные из Google Sheets
+            data = gs_manager.get_clean_data()
+            if not data:
+                raise ValueError("Нет данных для формирования графика")
 
-    if query.data == "change_time":
+            df = pd.DataFrame(data)
+            shifts = load_shifts()
+            schedule_data, unfilled = generate_schedule(df, shifts)
+
+            # Сохраняем расписание
+            save_schedule(schedule_data)
+
+            await query.edit_message_text("✅ Расписание успешно пересчитано и сохранено!")
+        except Exception as e:
+            logger.error(f"Ошибка генерации расписания: {e}")
+            await query.edit_message_text(f"⚠️ Ошибка при формировании расписания: {e}")
+    elif query.data == "change_time":
         await query.edit_message_text("⏰ Введите новое время в формате ЧЧ:ММ (например, 21:30):")
         context.user_data['awaiting_time'] = True
     elif query.data == "change_day":
@@ -229,7 +249,6 @@ async def clear_sheet_command(update: Update, context: ContextTypes.DEFAULT_TYPE
     except Exception as e:
         logger.error(f"Ошибка очистки: {e}", exc_info=True)
         await update.message.reply_text(f" Критическая ошибка: {str(e)}")
-
 
 def is_admin(chat_id):
     admins = load_admins()

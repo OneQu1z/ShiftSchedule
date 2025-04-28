@@ -14,27 +14,26 @@ class UserManager:
     def _ensure_file(self, filename):
         filename.parent.mkdir(parents=True, exist_ok=True)
         if not filename.exists():
-            with open(filename, "w") as f:
-                json.dump([], f)
+            with open(filename, "w", encoding="utf-8") as f:  # FIXED: Добавлена кодировка
+                json.dump([], f, ensure_ascii=False)  # FIXED: Отключен Unicode-escape
 
     def load_users(self):
         try:
-            with open(self.users_file, "r") as f:
+            with open(self.users_file, "r", encoding="utf-8") as f:  # FIXED: Указана кодировка
                 return json.load(f)
         except (json.JSONDecodeError, FileNotFoundError):
             return []
 
     def load_pen_users(self):
         try:
-            with open(self.pending_users_file, "r") as f:
+            with open(self.pending_users_file, "r", encoding="utf-8") as f:  # FIXED: Указана кодировка
                 return json.load(f)
         except (json.JSONDecodeError, FileNotFoundError):
             return []
 
-    def save_user(self, chat_id, username=None, name=None):
+    def save_user(self, chat_id, username=None, name=None, fio=None):
         users = self.load_users()
 
-        # Проверяем, есть ли уже пользователь
         user_exists = any(user.get('chat_id') == chat_id for user in users)
 
         if not user_exists:
@@ -42,6 +41,7 @@ class UserManager:
                 'chat_id': chat_id,
                 'username': username,
                 'name': name,
+                'fio': fio,
                 'approved': False
             }
             users.append(new_user)
@@ -49,9 +49,25 @@ class UserManager:
             return True
         return False
 
+    def update_user_fio(self, chat_id, fio):
+        users = self.load_users()
+        for user in users:
+            if user.get('chat_id') == chat_id:
+                user['fio'] = fio
+                self._save_users(users)
+                return True
+        return False
+
+    def get_user_by_fio(self, fio):
+        users = self.load_users()
+        for user in users:
+            if user.get('fio') == fio:
+                return user
+        return None
+
     def load_pending_users(self):
         try:
-            with open(self.pending_users_file, "r") as f:
+            with open(self.pending_users_file, "r", encoding="utf-8") as f:  # FIXED: Указана кодировка
                 return json.load(f)
         except (json.JSONDecodeError, FileNotFoundError):
             return []
@@ -60,20 +76,18 @@ class UserManager:
         pending_users = self.load_pending_users()
         if chat_id not in pending_users:
             pending_users.append(chat_id)
-            with open(self.pending_users_file, "w") as f:
-                json.dump(pending_users, f)
+            with open(self.pending_users_file, "w", encoding="utf-8") as f:  # FIXED
+                json.dump(pending_users, f, ensure_ascii=False)  # FIXED: Отключен Unicode-escape
             return True
         return False
 
     def accept_user(self, chat_id):
-        # Удаляем из ожидающих
         pending_users = self.load_pending_users()
         if chat_id in pending_users:
             pending_users.remove(chat_id)
-            with open(self.pending_users_file, "w") as f:
-                json.dump(pending_users, f)
+            with open(self.pending_users_file, "w", encoding="utf-8") as f:  # FIXED
+                json.dump(pending_users, f, ensure_ascii=False)  # FIXED
 
-        # Добавляем в approved
         users = self.load_users()
         for user in users:
             if user.get('chat_id') == chat_id:
@@ -81,7 +95,6 @@ class UserManager:
                 self._save_users(users)
                 return True
 
-        # Если пользователя не было в users.json
         new_user = {
             'chat_id': chat_id,
             'approved': True
@@ -93,17 +106,14 @@ class UserManager:
     def deny_user(self, chat_id):
         removed = False
 
-        # Удаляем из ожидающих
         pending_users = self.load_pending_users()
         if chat_id in pending_users:
             pending_users.remove(chat_id)
-            with open(self.pending_users_file, "w") as f:
-                json.dump(pending_users, f)
+            with open(self.pending_users_file, "w", encoding="utf-8") as f:  # FIXED
+                json.dump(pending_users, f, ensure_ascii=False)  # FIXED
             removed = True
 
-        # Удаляем из пользователей
         users = self.load_users()
-        # Создаем новый список без пользователя с указанным chat_id
         new_users = [user for user in users if user.get('chat_id') != chat_id]
 
         if len(new_users) < len(users):
@@ -134,5 +144,5 @@ class UserManager:
         return None
 
     def _save_users(self, users):
-        with open(self.users_file, "w") as f:
-            json.dump(users, f, indent=2)
+        with open(self.users_file, "w", encoding="utf-8") as f:  # FIXED: Указана кодировка
+            json.dump(users, f, indent=2, ensure_ascii=False)  # FIXED: Отключен Unicode-escape
