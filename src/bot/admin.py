@@ -27,12 +27,12 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     keyboard = [
         [InlineKeyboardButton("🔄 Пересчитать расписание", callback_data="generate_schedule")],
-        [InlineKeyboardButton(" Изменить время уведомления", callback_data="change_time")],
-        [InlineKeyboardButton(" Изменить день уведомления", callback_data="change_day")],
-        [InlineKeyboardButton("➕ Добавить слоты", callback_data="add_slots")],
-        [InlineKeyboardButton(" Очистить таблицу", callback_data="clear_sheet")],
-        [InlineKeyboardButton(" Управление", callback_data="management")],
-        [InlineKeyboardButton(" Сбросить все слоты", callback_data="reset_shifts")]
+        [InlineKeyboardButton("⏰ Изменить время уведомления", callback_data="change_time")],
+        [InlineKeyboardButton("📅 Изменить день уведомления", callback_data="change_day")],
+        [InlineKeyboardButton("➕ Добавить слоты на день", callback_data="add_slots")],
+        [InlineKeyboardButton("🧹 Очистить таблицу ответов", callback_data="clear_sheet")],
+        [InlineKeyboardButton("👥 Управление пользователями", callback_data="management")],
+        [InlineKeyboardButton("♻️ Сбросить все слоты", callback_data="reset_shifts")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text(" Админ-панель:", reply_markup=reply_markup)
@@ -105,11 +105,11 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif query.data == "reset_shifts":  # Новая функция для обработки нажатия кнопки "Сбросить значения shifts.json"
         try:
             keyboard = [
-                [InlineKeyboardButton(" Сбросить", callback_data="confirm_reset")],
-                [InlineKeyboardButton(" Отмена", callback_data="cancel_reset")]
-            ]
+                [InlineKeyboardButton("✅ Подтвердить сброс", callback_data="confirm_reset")],
+                [InlineKeyboardButton("❌ Отменить действие", callback_data="cancel_reset")]
+                ]
             reply_markup = InlineKeyboardMarkup(keyboard)
-            await query.edit_message_text(" Вы уверены, что хотите сбросить количество слотов на значения по умолчанию?", reply_markup=reply_markup)
+            await query.edit_message_text("⚠️ Вы уверены, что хотите сбросить все слоты на значения по умолчанию?", reply_markup=reply_markup)
         except Exception as e:
             logger.error(f"Ошибка в button_handler: {e}")
             await query.edit_message_text("⚠️ Ошибка при обработке нажатия кнопки")
