@@ -1,23 +1,17 @@
-import pytz
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update
 from telegram.ext import (
-    CommandHandler,
     ContextTypes,
-    CallbackQueryHandler,
-    MessageHandler,
-    filters
 )
-from datetime import time
 import logging
+
+from src.bot.user_manager import UserManager
 from src.bot.utils import send_schedule_to_user
-from src.core.storage import load_admins, load_notification_time, save_notification_time, load_shifts, save_shifts
 from src.core.google_utils import GoogleSheetsManager
-from src.bot.scheduler import auto_send_schedule
 logger = logging.getLogger(__name__)
 gs_manager = GoogleSheetsManager()
 
 HELP_TEXT = """
-📚 Доступные команды:
+ Доступные команды:
 
 /start - Зарегистрироваться
 /schedule - Получить расписание
@@ -28,120 +22,72 @@ HELP_TEXT = """
 /clear_sheet - Очистить Google-таблицу
 """
 
-
+# Обработчик команды /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Обрабатывает команду /start. Регистрирует пользователя и отправляет ему сообщение с приветствием.
+    """
     try:
         user_manager = context.bot_data['user_manager']
         chat_id = update.effective_chat.id
+        username = update.effective_user.username or "не указан"
+        full_name = update.effective_user.full_name or "не указано"
 
-        if user_manager.save_user(chat_id):
-            await update.message.reply_text(f"✅ Вы успешно зарегистрированы!\n\n{HELP_TEXT}")
+        # Сохраняем пользователя (если его еще нет)
+        is_new_user = user_manager.save_user(chat_id, username, full_name)
+
+        # Добавляем в ожидающие одобрения
+        user_manager.save_pending_user(chat_id)
+
+        if is_new_user:
+            response = (
+                f"✅ Вы подали заявку на доступ к функционалу бота.\n\n"
+                f"Ваши данные:\n"
+                f"ID: {chat_id}\n"
+                f"Ожидайте одобрения администратором."
+            )
         else:
-            await update.message.reply_text(f"ℹ️ Вы уже зарегистрированы.\n\n{HELP_TEXT}")
+            user_info = user_manager.get_user_info(chat_id)
+            status = "одобрен" if user_info.get('approved') else "ожидает одобрения"
+
+            response = (
+                f"ℹ️ Вы уже зарегистрированы в системе.\n\n"
+                f"Ваши данные:\n"
+                f"ID: {chat_id}\n"
+                f"Статус: {status}\n\n"
+                f"{HELP_TEXT}"
+            )
+
+        await update.message.reply_text(response)
 
     except Exception as e:
-        await update.message.reply_text("⚠️ Ошибка при регистрации")
-        logger.error(f"Ошибка в /start: {e}")
+        logger.error(f"Ошибка в /start: {e}", exc_info=True)
+        await update.message.reply_text("⚠️ Произошла ошибка при обработке вашего запроса. Пожалуйста, попробуйте позже.")
 
-
+# Обработчик команды /help
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Обрабатывает команду /help. Отправляет пользователю сообщение с доступными командами.
+    """
     await update.message.reply_text(HELP_TEXT)
 
-
+# Обработчик команды /schedule
 async def schedule(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Обрабатывает команду /schedule. Отправляет пользователю расписание.
+    """
     try:
-        await send_schedule_to_user(update.effective_chat.id, context)
+        user_manager = UserManager()
+        chat_id = update.effective_chat.id
+
+        if user_manager.is_approved(chat_id):
+            await send_schedule_to_user(update.effective_chat.id, context)
+        else:
+            await update.message.reply_text("⛔ Вы не одобрены для использования этой команды")
+
     except Exception as e:
         logger.error(f"Ошибка при отправке расписания: {e}")
         await update.message.reply_text("⚠️ Ошибка при формировании расписания")
 
 
-async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not is_admin(update.effective_chat.id):
-        await update.message.reply_text("⛔ У вас нет прав доступа!")
-        return
-
-    keyboard = [
-        [InlineKeyboardButton("🕒 Изменить время уведомления", callback_data="change_time")],
-        [InlineKeyboardButton("➕ Добавить слоты", callback_data="add_slots")],
-        [InlineKeyboardButton("🧹 Очистить таблицу", callback_data="clear_sheet")]
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-    await update.message.reply_text("🔧 Админ-панель:", reply_markup=reply_markup)
-
-
-async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-
-    if query.data == "change_time":
-        await query.edit_message_text("⏰ Введите новое время в формате ЧЧ:ММ (например, 21:30):")
-        context.user_data['awaiting_time'] = True
-    elif query.data == "add_slots":
-        days = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"]
-        keyboard = [[InlineKeyboardButton(day, callback_data=f"add_{i}")] for i, day in enumerate(days)]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-        await query.edit_message_text("📅 Выберите день для добавления слота:", reply_markup=reply_markup)
-    elif query.data.startswith("add_"):
-        day_idx = int(query.data.split("_")[1])
-        shifts = load_shifts()
-        day = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"][day_idx]
-        shifts[day] += 1
-        save_shifts(shifts)
-        await query.edit_message_text(f"✅ Добавлен слот для {day}. Теперь: {shifts[day]}")
-    elif query.data == "clear_sheet":
-        try:
-            if gs_manager.clear_responses():  # Используем новый метод
-                await query.edit_message_text("✅ Google-таблица очищена")
-            else:
-                await query.edit_message_text("⚠️ Ошибка при очистке таблицы")
-        except Exception as e:
-            logger.error(f"Ошибка очистки таблицы: {e}")
-            await query.edit_message_text("⚠️ Ошибка при очистке таблицы")
-
-
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if context.user_data.get('awaiting_time'):
-        try:
-            time_str = update.message.text
-            hours, minutes = map(int, time_str.split(':'))
-            if 0 <= hours < 24 and 0 <= minutes < 60:
-                save_notification_time(hours, minutes, 3)  # По умолчанию среда
-                context.user_data.pop('awaiting_time')
-                await update.message.reply_text(f"✅ Время уведомления изменено на {time_str}")
-
-                # Перезапускаем задачу
-                context.job_queue.stop()
-                tz = pytz.timezone('Europe/Moscow')
-                context.job_queue.run_daily(
-                    auto_send_schedule,
-                    time=time(hour=hours, minute=minutes, tzinfo=tz),
-                    days=(3,)
-                )
-            else:
-                await update.message.reply_text("⚠️ Неверный формат времени. Используйте ЧЧ:ММ")
-        except ValueError:
-            await update.message.reply_text("⚠️ Неверный формат. Используйте ЧЧ:ММ")
-
-
-async def clear_sheet_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not is_admin(update.effective_chat.id):
-        await update.message.reply_text("⛔ У вас нет прав доступа!")
-        return
-
-    try:
-        # Создаём новый экземпляр менеджера для гарантии актуального подключения
-        manager = GoogleSheetsManager()
-        if manager.clear_responses():
-            await update.message.reply_text("✅ Таблица успешно очищена!")
-        else:
-            await update.message.reply_text("⚠️ Не удалось очистить таблицу. Проверьте логи.")
-    except Exception as e:
-        logger.error(f"Ошибка очистки: {e}", exc_info=True)
-        await update.message.reply_text(f"🚨 Критическая ошибка: {str(e)}")
-
-
-def is_admin(chat_id):
-    admins = load_admins()
-    return str(chat_id) in admins
 

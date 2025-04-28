@@ -1,13 +1,9 @@
-import logging
 import os
-from datetime import time
 from dotenv import load_dotenv
-import pytz
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, filters
-from src.bot.handlers import start, help_command, schedule, admin_panel, button_handler, handle_message, clear_sheet_command
-from src.bot.scheduler import auto_send_schedule
+from src.bot.handlers import start, help_command, schedule
 from src.core.storage import load_notification_time
-from src.bot.user_manager import UserManager
+from src.bot.admin import *
 
 load_dotenv()
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")  # Безопасное получение токена
@@ -29,6 +25,9 @@ def main():
         app.add_handler(CommandHandler("schedule", schedule))
         app.add_handler(CommandHandler("admin", admin_panel))
         app.add_handler(CommandHandler("clear_sheet", clear_sheet_command))
+        app.add_handler(CommandHandler("accept", accept_command))
+        app.add_handler(CommandHandler("deny", deny_command))
+
         app.add_handler(CallbackQueryHandler(button_handler))
         app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 

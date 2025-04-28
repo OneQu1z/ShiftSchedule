@@ -11,8 +11,16 @@ logger = logging.getLogger(__name__)
 
 
 class GoogleSheetsManager:
+    _instance = None
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super(GoogleSheetsManager, cls).__new__(cls)
+            cls._instance.sheet = cls._instance._connect()
+        return cls._instance
+
     def __init__(self):
-        self.sheet = self._connect()
+        pass
 
     def _connect(self) -> Optional[gspread.Worksheet]:
         """Подключение к Google Sheets с детальным логированием."""
@@ -21,7 +29,7 @@ class GoogleSheetsManager:
                 "https://www.googleapis.com/auth/spreadsheets",
                 "https://www.googleapis.com/auth/drive"
             ]
-            creds = ServiceAccountCredentials.from_json_keyfile_name("config/credentials.json", scope)
+            creds = ServiceAccountCredentials.from_json_keyfile_name("../../config/credentials.json", scope)
             client = gspread.authorize(creds)
 
             # Проверка существования таблицы "Ответы"
@@ -99,3 +107,4 @@ class GoogleSheetsManager:
         except Exception as e:
             logger.error(f"Ошибка при очистке листа: {e}")
             return False
+
