@@ -4,7 +4,7 @@ import pytz
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 
-from src.bot.scheduler import auto_send_schedule
+from src.bot.utils import auto_send_schedule
 from src.bot.user_manager import UserManager
 from src.core.google_utils import GoogleSheetsManager
 from src.core.storage import load_admins, load_shifts, save_notification_time, load_notification_time, \

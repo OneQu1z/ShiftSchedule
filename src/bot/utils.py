@@ -1,5 +1,7 @@
 import os
 import pandas as pd
+from telegram.ext import ContextTypes
+
 from src.core.google_utils import GoogleSheetsManager
 from src.core.scheduler import generate_schedule, build_schedule_table
 from src.core.storage import load_shifts
@@ -9,6 +11,15 @@ import logging
 gs_manager = GoogleSheetsManager()
 logger = logging.getLogger(__name__)
 
+async def auto_send_schedule(context: ContextTypes.DEFAULT_TYPE):
+    try:
+        for chat_id in context.bot_data['user_manager'].load_pen_users():
+            try:
+                await send_schedule_to_user(chat_id, context)
+            except Exception as e:
+                logger.error(f"Ошибка отправки {chat_id}: {e}")
+    except Exception as e:
+        logger.error(f"Ошибка рассылки: {e}")
 
 async def send_schedule_to_user(chat_id, context):
     try:

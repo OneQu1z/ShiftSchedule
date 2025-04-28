@@ -98,7 +98,7 @@ class GoogleSheetsManager:
             if len(all_values) <= 1:
                 return True
 
-            # Определяем диапазон для очистки (со 2й строки до последней)
+            # Определяем диапазон для очистки (со 2-й строки до последней)
             range_to_clear = f"A2:Z{len(all_values)}"
 
             # Очищаем данные
