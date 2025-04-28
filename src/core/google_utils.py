@@ -33,21 +33,23 @@ class GoogleSheetsManager:
             client = gspread.authorize(creds)
 
             # Проверка существования таблицы "Ответы"
-            spreadsheet = client.open("Ответы")
-            logger.info(f"Таблица 'Ответы' найдена. Доступные листы: {[ws.title for ws in spreadsheet.worksheets()]}")
+            try:
+                spreadsheet = client.open("Ответы")
+                logger.info(f"Таблица 'Ответы' найдена. Доступные листы: {[ws.title for ws in spreadsheet.worksheets()]}")
+            except gspread.SpreadsheetNotFound:
+                logger.error("Таблица 'Ответы' не найдена. Проверьте название и доступ.")
+                return None
 
             # Попытка подключения к листу
-            worksheet = spreadsheet.worksheet("Form_Responses1")
-            logger.info(f"Успешно подключено к листу: {worksheet.title}")
-            return worksheet
+            try:
+                worksheet = spreadsheet.worksheet("Form_Responses1")
+                logger.info(f"Успешно подключено к листу: {worksheet.title}")
+                return worksheet
+            except gspread.WorksheetNotFound:
+                logger.error("Лист 'Form_Responses1' не найден. Доступные листы: "
+                             f"{[ws.title for ws in spreadsheet.worksheets()]}")
+                return None
 
-        except gspread.SpreadsheetNotFound:
-            logger.error("Таблица 'Ответы' не найдена. Проверьте название и доступ.")
-            return None
-        except gspread.WorksheetNotFound:
-            logger.error("Лист 'Form_Responses1' не найден. Доступные листы: "
-                         f"{[ws.title for ws in spreadsheet.worksheets()]}")
-            return None
         except Exception as e:
             logger.error(f"Критическая ошибка подключения: {str(e)}", exc_info=True)
             return None
