@@ -1,12 +1,14 @@
-from telegram import Update
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
-    ContextTypes,
+    ContextTypes
 )
 import logging
 
 from src.bot.user_manager import UserManager
 from src.bot.utils import send_schedule_to_user
 from src.core.google_utils import GoogleSheetsManager
+from src.core.storage import load_shifts, save_shifts
+
 logger = logging.getLogger(__name__)
 gs_manager = GoogleSheetsManager()
 
@@ -16,10 +18,9 @@ HELP_TEXT = """
 /start - Зарегистрироваться
 /schedule - Получить расписание
 /help - Помощь
-
+/add_slots - Добавить слоты к общему расписанию, которыми готов поделиться с другими участниками.
 Админ-команды:
 /admin - Панель управления
-/clear_sheet - Очистить Google-таблицу
 """
 
 # Обработчик команды /start
@@ -88,6 +89,35 @@ async def schedule(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logger.error(f"Ошибка при отправке расписания: {e}")
         await update.message.reply_text("⚠️ Ошибка при формировании расписания")
+
+async def add_slots(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.callback_query:
+        query = update.callback_query
+        day_idx = int(query.data.split("_")[1])
+        shifts = load_shifts()
+        day = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"][day_idx]
+        shifts[day] += 1
+        save_shifts(shifts)
+        await query.edit_message_text(f"✅ Добавлен слот для {day}. Теперь: {shifts[day]}")
+    else:
+        days = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"]
+        keyboard = [[InlineKeyboardButton(day, callback_data=f"add_{i}")] for i, day in enumerate(days)]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+        await update.message.reply_text(" Выберите день для добавления слота:", reply_markup=reply_markup)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

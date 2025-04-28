@@ -1,8 +1,7 @@
 import os
 from dotenv import load_dotenv
 from telegram.ext import ApplicationBuilder, CommandHandler, CallbackQueryHandler, MessageHandler, filters
-from src.bot.handlers import start, help_command, schedule
-from src.core.storage import load_notification_time
+from src.bot.handlers import start, help_command, schedule, add_slots
 from src.bot.admin import *
 
 load_dotenv()
@@ -27,7 +26,7 @@ def main():
         app.add_handler(CommandHandler("clear_sheet", clear_sheet_command))
         app.add_handler(CommandHandler("accept", accept_command))
         app.add_handler(CommandHandler("deny", deny_command))
-
+        app.add_handler(CommandHandler("add_slots", add_slots))
 
         app.add_handler(CallbackQueryHandler(button_handler))
         app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))

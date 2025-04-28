@@ -10,6 +10,9 @@ DEFAULT_SHIFTS = {
     "Суббота": 0,
     "Воскресенье": 0
 }
+def reset_shifts():
+    """Сбрасывает слоты к значениям по умолчанию"""
+    save_shifts(DEFAULT_SHIFTS.copy())
 
 def load_shifts():
     if os.path.exists("../../data/shifts.json"):

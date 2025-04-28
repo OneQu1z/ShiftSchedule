@@ -7,7 +7,8 @@ from telegram.ext import ContextTypes
 from src.bot.scheduler import auto_send_schedule
 from src.bot.user_manager import UserManager
 from src.core.google_utils import GoogleSheetsManager
-from src.core.storage import load_admins, load_shifts, save_shifts, save_notification_time, load_notification_time
+from src.core.storage import load_admins, load_shifts, save_notification_time, load_notification_time, \
+    reset_shifts, save_shifts
 import logging
 
 logger = logging.getLogger(__name__)
@@ -27,7 +28,8 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton(" Изменить день уведомления", callback_data="change_day")],
         [InlineKeyboardButton("➕ Добавить слоты", callback_data="add_slots")],
         [InlineKeyboardButton(" Очистить таблицу", callback_data="clear_sheet")],
-        [InlineKeyboardButton(" Управление", callback_data="management")]  # Новая кнопка
+        [InlineKeyboardButton(" Управление", callback_data="management")],
+        [InlineKeyboardButton(" Сбросить все слоты", callback_data="reset_shifts")]
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     await update.message.reply_text(" Админ-панель:", reply_markup=reply_markup)
@@ -48,16 +50,15 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data['awaiting_day'] = True
     elif query.data == "add_slots":
         days = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"]
-        keyboard = [[InlineKeyboardButton(day, callback_data=f"add_{i}")] for i, day in enumerate(days)]
+        keyboard = [[InlineKeyboardButton(day, callback_data=f"day_{i}")] for i, day in enumerate(days)]
         reply_markup = InlineKeyboardMarkup(keyboard)
-        await query.edit_message_text(" Выберите день для добавления слота:", reply_markup=reply_markup)
-    elif query.data.startswith("add_"):
+        await query.edit_message_text("Выберите день для изменения количества слотов:", reply_markup=reply_markup)
+    elif query.data.startswith("day_"):
         day_idx = int(query.data.split("_")[1])
-        shifts = load_shifts()
-        day = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"][day_idx]
-        shifts[day] += 1
-        save_shifts(shifts)
-        await query.edit_message_text(f"✅ Добавлен слот для {day}. Теперь: {shifts[day]}")
+        day_name = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"][day_idx]
+        context.user_data['selected_day'] = day_name
+        await query.edit_message_text(f"Введите новое количество слотов для {day_name}:")
+        context.user_data['awaiting_slots'] = True
     elif query.data == "clear_sheet":
         try:
             if gs_manager.clear_responses():  # Используем новый метод
@@ -81,7 +82,30 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             logger.error(f"Ошибка в button_handler: {e}")
             await query.edit_message_text("⚠️ Ошибка при обработке нажатия кнопки")
-
+    elif query.data == "reset_shifts":  # Новая функция для обработки нажатия кнопки "Сбросить значения shifts.json"
+        try:
+            keyboard = [
+                [InlineKeyboardButton(" Сбросить", callback_data="confirm_reset")],
+                [InlineKeyboardButton(" Отмена", callback_data="cancel_reset")]
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.edit_message_text(" Вы уверены, что хотите сбросить количество слотов на значения по умолчанию?", reply_markup=reply_markup)
+        except Exception as e:
+            logger.error(f"Ошибка в button_handler: {e}")
+            await query.edit_message_text("⚠️ Ошибка при обработке нажатия кнопки")
+    elif query.data == "confirm_reset":  # Новая функция для обработки нажатия кнопки "Да"
+        try:
+            reset_shifts()
+            await query.edit_message_text("✅ Значения слотов сброшены на значения по умолчанию")
+        except Exception as e:
+            logger.error(f"Ошибка в button_handler: {e}")
+            await query.edit_message_text("⚠️ Ошибка при обработке нажатия кнопки")
+    elif query.data == "cancel_reset":
+        try:
+            await query.edit_message_text("❌ Сброс значений отменен")
+        except Exception as e:
+            logger.error(f"Ошибка в button_handler: {e}")
+            await query.edit_message_text("⚠️ Ошибка при обработке нажатия кнопки")
 
 # Обработчик сообщений от пользователя
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -127,6 +151,23 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except ValueError:
             await update.message.reply_text("⚠️ Неверный формат. Используйте число от 1 до 7")
 
+    if context.user_data.get('awaiting_slots'):
+        try:
+            slots = int(update.message.text)
+            if slots >= 0:
+                day_name = context.user_data['selected_day']
+                shifts = load_shifts()
+                shifts[day_name] = slots
+                save_shifts(shifts)
+                await update.message.reply_text(f"✅ Количество слотов для {day_name} изменено на {slots}")
+            else:
+                await update.message.reply_text("⚠️ Количество слотов не может быть отрицательным")
+        except ValueError:
+            await update.message.reply_text("⚠️ Пожалуйста, введите целое число")
+        finally:
+            context.user_data.pop('awaiting_slots', None)
+            context.user_data.pop('selected_day', None)
+
 # Обработчик команды /accept
 async def accept_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
@@ -140,6 +181,7 @@ async def accept_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         chat_id = int(context.args[0])
         user_manager = UserManager()
         user_manager.accept_user(chat_id)
+        await context.bot.send_message(chat_id, "Супер, вам одобрен доступ! Начинайте пользоваться ботом!")
         await update.message.reply_text(f"✅ Пользователь с Chat ID {chat_id} одобрен")
     except Exception as e:
         await update.message.reply_text("⚠️ Ошибка при одобрении пользователя")
