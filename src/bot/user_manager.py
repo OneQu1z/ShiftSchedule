@@ -17,6 +17,16 @@ class UserManager:
             with open(filename, "w", encoding="utf-8") as f:  # FIXED: Добавлена кодировка
                 json.dump([], f, ensure_ascii=False)  # FIXED: Отключен Unicode-escape
 
+    def get_all_users(self):
+        """Возвращает словарь всех пользователей в формате {chat_id: user_data}"""
+        users = self.load_users()
+        return {user['chat_id']: user for user in users if 'chat_id' in user}
+
+    def get_approved_users(self):
+        """Возвращает только одобренных пользователей"""
+        users = self.load_users()
+        return {user['chat_id']: user for user in users if user.get('approved')}
+
     def load_users(self):
         try:
             with open(self.users_file, "r", encoding="utf-8") as f:  # FIXED: Указана кодировка
@@ -31,28 +41,45 @@ class UserManager:
         except (json.JSONDecodeError, FileNotFoundError):
             return []
 
-    def save_user(self, chat_id, username=None, name=None, fio=None):
+    def save_user(self, chat_id, username=None, name=None, fio=None, approved=False):
         users = self.load_users()
 
-        user_exists = any(user.get('chat_id') == chat_id for user in users)
+        for user in users:
+            if user.get('chat_id') == chat_id:
+                # Обновляем существующего пользователя
+                if username is not None:
+                    user['username'] = username
+                if name is not None:
+                    user['name'] = name
+                if fio is not None:
+                    user['fio'] = fio
+                user['approved'] = approved
+                self._save_users(users)
+                return False
 
-        if not user_exists:
-            new_user = {
-                'chat_id': chat_id,
-                'username': username,
-                'name': name,
-                'fio': fio,
-                'approved': False
-            }
-            users.append(new_user)
-            self._save_users(users)
-            return True
-        return False
+            # Добавляем нового пользователя
+        new_user = {
+            'chat_id': chat_id,
+            'username': username,
+            'name': name,
+            'fio': fio,
+            'approved': approved
+        }
+        users.append(new_user)
+        self._save_users(users)
+        return True
 
     def update_user_fio(self, chat_id, fio):
+        """Обновляет ФИО пользователя с проверками"""
+        if not fio or not isinstance(fio, str):
+            return False
+
         users = self.load_users()
         for user in users:
             if user.get('chat_id') == chat_id:
+                # Проверяем, что у пользователя ещё нет ФИО
+                if user.get('fio'):
+                    return False
                 user['fio'] = fio
                 self._save_users(users)
                 return True
@@ -64,6 +91,12 @@ class UserManager:
             if user.get('fio') == fio:
                 return user
         return None
+
+    def find_users_by_fio(self, fio_part):
+        """Находит пользователей по части ФИО (регистронезависимо)"""
+        users = self.load_users()
+        return [user for user in users
+            if user.get('fio') and fio_part.lower() in user['fio'].lower()]
 
     def load_pending_users(self):
         try:

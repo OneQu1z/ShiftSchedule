@@ -70,11 +70,11 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data['awaiting_day'] = True
     elif query.data == "add_slots":
         days = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"]
-        keyboard = [[InlineKeyboardButton(day, callback_data=f"day_{i}")] for i, day in enumerate(days)]
+        keyboard = [[InlineKeyboardButton(day, callback_data=f"admin_day_{i}")] for i, day in enumerate(days)]  # Префикс admin_day_
         reply_markup = InlineKeyboardMarkup(keyboard)
         await query.edit_message_text("Выберите день для изменения количества слотов:", reply_markup=reply_markup)
-    elif query.data.startswith("day_"):
-        day_idx = int(query.data.split("_")[1])
+    elif query.data.startswith("admin_day_"):  # Обработка выбора дня админом
+        day_idx = int(query.data.split("_")[2])
         day_name = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"][day_idx]
         context.user_data['selected_day'] = day_name
         await query.edit_message_text(f"Введите новое количество слотов для {day_name}:")
@@ -95,7 +95,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             message = "Список пользователей:\n"
             for user in users:
-                message += f"Ник: {user['username']}\nИмя: {user['name']}\nЧат ID: {user['chat_id']}\n\n"
+                message += f"Ник: {user['username']}\nИмя: {user['name']}\nФИО: {user['fio']}\nЧат ID: {user['chat_id']}\n\n"
 
             await query.edit_message_text(message)
             await query.message.reply_text("Введите /accept или /deny и Chat ID пользователя для одобрения или отказа")

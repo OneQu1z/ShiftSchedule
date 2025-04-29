@@ -1,5 +1,6 @@
 import json
 import os
+from pathlib import Path
 
 DEFAULT_SHIFTS = {
     "Понедельник": 0,
@@ -60,36 +61,83 @@ def load_schedule():
             return json.load(f)
     return {}
 
+
+def get_exchange_offers_file():
+    """Возвращает путь к файлу с предложениями обмена"""
+    return Path(__file__).parent.parent.parent / "data" / "exchange_offers.json"
+
 def save_exchange_offer(offer):
-    """Сохраняет предложение обмена"""
-    offers = load_exchange_offers()
-    offers.append(offer)
-    with open("../../data/exchange_offers.json", "w", encoding="utf-8") as f:
-        json.dump(offers, f, ensure_ascii=False, indent=2)
+    """Сохраняет предложение обмена в файл"""
+    print(f"Пытаюсь сохранить предложение: {offer}")
+    file_path = get_exchange_offers_file()
+    file_path.parent.mkdir(parents=True, exist_ok=True)
 
-def load_exchange_offers():
-    """Загружает все предложения обмена"""
-    if os.path.exists("../../data/exchange_offers.json"):
-        with open("../../data/exchange_offers.json", "r", encoding="utf-8") as f:
-            return json.load(f)
-    return []
+    try:
+        # Загружаем существующие предложения
+        if file_path.exists():
+            with open(file_path, "r", encoding="utf-8") as f:
+                offers = json.load(f)
+        else:
+            offers = []
 
-def find_exchange_offer(from_chat_id, to_chat_id):
-    """Находит предложение обмена"""
-    offers = load_exchange_offers()
-    for offer in offers:
-        if offer['from_chat_id'] == from_chat_id and offer['to_chat_id'] == to_chat_id and offer['status'] == 'pending':
-            return offer
+        # Добавляем новое предложение
+        offers.append(offer)
+
+        # Сохраняем обратно
+        with open(file_path, "w", encoding="utf-8") as f:
+            json.dump(offers, f, indent=2, ensure_ascii=False)
+
+        return True
+    except Exception as e:
+        print(f"Ошибка при сохранении предложения обмена: {e}")
+        return False
+
+def find_exchange_offer(from_user_id, to_user_id):
+    """Находит предложение обмена по ID пользователей"""
+    file_path = get_exchange_offers_file()
+
+    if not file_path.exists():
+        return None
+
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            offers = json.load(f)
+
+        for offer in offers:
+            if (offer.get('from_user') == from_user_id and
+                    offer.get('to_user') == to_user_id and
+                    offer.get('status') == 'pending'):
+                return offer
+
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        print(f"Ошибка при поиске предложения обмена: {e}")
+
     return None
 
-def remove_exchange_offer(offer):
+def remove_exchange_offer(offer_to_remove):
     """Удаляет предложение обмена"""
-    offers = load_exchange_offers()
-    new_offers = [o for o in offers if not (
-            o['from_chat_id'] == offer['from_chat_id'] and
-            o['to_chat_id'] == offer['to_chat_id'] and
-            o['from_shift'] == offer['from_shift'] and
-            o['to_shift'] == offer['to_shift']
-    )]
-    with open("../../data/exchange_offers.json", "w", encoding="utf-8") as f:
-        json.dump(new_offers, f, ensure_ascii=False, indent=2)
+    file_path = get_exchange_offers_file()
+
+    if not file_path.exists():
+        return False
+
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            offers = json.load(f)
+
+        # Удаляем предложение (сравниваем по всем полям)
+        new_offers = [
+            o for o in offers
+            if not (o.get('from_user') == offer_to_remove.get('from_user') and
+                    o.get('to_user') == offer_to_remove.get('to_user') and
+                    o.get('day_to_give') == offer_to_remove.get('day_to_give') and
+                    o.get('day_to_get') == offer_to_remove.get('day_to_get'))
+        ]
+
+        with open(file_path, "w", encoding="utf-8") as f: \
+            json.dump(new_offers, f, indent=2, ensure_ascii=False)
+
+        return True
+    except Exception as e:
+        print(f"Ошибка при удалении предложения обмена: {e}")
+        return False
