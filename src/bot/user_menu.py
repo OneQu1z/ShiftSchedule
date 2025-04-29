@@ -1,11 +1,13 @@
 from telegram import ReplyKeyboardMarkup, Update
 from telegram.ext import ContextTypes
-
+import logging
 from src.bot.handlers import (
     show_schedule,
     add_slots,
     help_command, start_shift_exchange
 )
+
+logger = logging.getLogger(__name__)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
