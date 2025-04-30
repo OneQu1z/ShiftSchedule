@@ -17,11 +17,6 @@ class UserManager:
             with open(filename, "w", encoding="utf-8") as f:  # FIXED: Добавлена кодировка
                 json.dump([], f, ensure_ascii=False)  # FIXED: Отключен Unicode-escape
 
-    def get_all_users(self):
-        """Возвращает словарь всех пользователей в формате {chat_id: user_data}"""
-        users = self.load_users()
-        return {user['chat_id']: user for user in users if 'chat_id' in user}
-
     def get_approved_users(self):
         """Возвращает только одобренных пользователей"""
         users = self.load_users()
@@ -91,12 +86,6 @@ class UserManager:
             if user.get('fio') == fio:
                 return user
         return None
-
-    def find_users_by_fio(self, fio_part):
-        """Находит пользователей по части ФИО (регистронезависимо)"""
-        users = self.load_users()
-        return [user for user in users
-            if user.get('fio') and fio_part.lower() in user['fio'].lower()]
 
     def load_pending_users(self):
         try:

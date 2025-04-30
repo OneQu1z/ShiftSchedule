@@ -110,3 +110,49 @@ class GoogleSheetsManager:
             logger.error(f"Ошибка при очистке листа: {e}")
             return False
 
+    def remove_duplicates(self) -> bool:
+        """
+        Удаляет дубликаты записей, оставляя только самые свежие данные для каждого сотрудника.
+        Возвращает True, если успешно, False в случае ошибки.
+        """
+        if not self.sheet:
+            return False
+
+        try:
+            # Получаем все данные (уже очищенные от пустых строк)
+            clean_data = self.get_clean_data()
+            if not clean_data:
+                return True  # Нет данных для обработки
+
+            # Сортируем записи по ФИО и времени (новые — в конец)
+            clean_data.sort(key=lambda x: (x["ФИО"], x["Отметка времени"]))
+
+            # Группируем по ФИО, сохраняя только последнюю запись
+            unique_data = {}
+            for record in clean_data:
+                unique_data[record["ФИО"]] = record  # Перезаписываем, остаётся последняя
+
+            # Преобразуем обратно в список
+            filtered_data = list(unique_data.values())
+
+            # Очищаем лист (кроме заголовков)
+            if not self.clear_responses():
+                return False
+
+            # Если данные остались — записываем обратно
+            if filtered_data:
+                # Подготавливаем данные для записи (в том же порядке, что и заголовки)
+                headers = self.sheet.row_values(1)  # Получаем заголовки
+                rows_to_write = [
+                    [record.get(header, "") for header in headers]
+                    for record in filtered_data
+                ]
+                # Записываем, начиная со 2-й строки
+                self.sheet.insert_rows(rows_to_write, 2)
+
+            logger.info(f"Удалено {len(clean_data) - len(filtered_data)} дубликатов")
+            return True
+
+        except Exception as e:
+            logger.error(f"Ошибка при удалении дубликатов: {e}", exc_info=True)
+            return False

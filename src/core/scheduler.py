@@ -68,12 +68,3 @@ def build_schedule_table(schedule: dict, employee_names: list, availability: dic
                 table.at[name, day] = ""
 
     return table.fillna("")
-
-
-def count_shifts(schedule: dict) -> dict:
-    """Подсчитывает количество смен для каждого сотрудника"""
-    shifts = {}
-    for day in schedule:
-        for name in schedule[day]:
-            shifts[name] = shifts.get(name, 0) + 1
-    return shifts

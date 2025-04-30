@@ -51,6 +51,13 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if not data:
                 raise ValueError("Нет данных для формирования графика")
 
+            # УДАЛЯЕМ ДУБЛИКАТЫ (добавляем эту строку)
+            if not gs_manager.remove_duplicates():
+                raise ValueError("Не удалось очистить дубликаты")
+
+            # Обновляем данные после удаления дубликатов (на всякий случай)
+            data = gs_manager.get_clean_data()
+
             df = pd.DataFrame(data)
             shifts = load_shifts()
             schedule_data, unfilled = generate_schedule(df, shifts)
@@ -62,23 +69,28 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             logger.error(f"Ошибка генерации расписания: {e}")
             await query.edit_message_text(f"⚠️ Ошибка при формировании расписания: {e}")
+
     elif query.data == "change_time":
         await query.edit_message_text("⏰ Введите новое время в формате ЧЧ:ММ (например, 21:30):")
         context.user_data['awaiting_time'] = True
+
     elif query.data == "change_day":
         await query.edit_message_text(" Введите новый день недели (1-7):")
         context.user_data['awaiting_day'] = True
+
     elif query.data == "add_slots":
         days = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"]
         keyboard = [[InlineKeyboardButton(day, callback_data=f"admin_day_{i}")] for i, day in enumerate(days)]  # Префикс admin_day_
         reply_markup = InlineKeyboardMarkup(keyboard)
         await query.edit_message_text("Выберите день для изменения количества слотов:", reply_markup=reply_markup)
+
     elif query.data.startswith("admin_day_"):  # Обработка выбора дня админом
         day_idx = int(query.data.split("_")[2])
         day_name = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота", "Воскресенье"][day_idx]
         context.user_data['selected_day'] = day_name
         await query.edit_message_text(f"Введите новое количество слотов для {day_name}:")
         context.user_data['awaiting_slots'] = True
+
     elif query.data == "clear_sheet":
         try:
             if gs_manager.clear_responses():  # Используем новый метод
@@ -88,6 +100,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             logger.error(f"Ошибка очистки таблицы: {e}")
             await query.edit_message_text("⚠️ Ошибка при очистке таблицы")
+
     elif query.data == "management":  # Новая функция для обработки нажатия кнопки "Управление"
         try:
             user_manager = UserManager()
@@ -102,6 +115,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             logger.error(f"Ошибка в button_handler: {e}")
             await query.edit_message_text("⚠️ Ошибка при обработке нажатия кнопки")
+
     elif query.data == "reset_shifts":  # Новая функция для обработки нажатия кнопки "Сбросить значения shifts.json"
         try:
             keyboard = [
@@ -113,6 +127,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             logger.error(f"Ошибка в button_handler: {e}")
             await query.edit_message_text("⚠️ Ошибка при обработке нажатия кнопки")
+
     elif query.data == "confirm_reset":  # Новая функция для обработки нажатия кнопки "Да"
         try:
             reset_shifts()
@@ -120,6 +135,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except Exception as e:
             logger.error(f"Ошибка в button_handler: {e}")
             await query.edit_message_text("⚠️ Ошибка при обработке нажатия кнопки")
+
     elif query.data == "cancel_reset":
         try:
             await query.edit_message_text("❌ Сброс значений отменен")
