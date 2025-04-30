@@ -29,13 +29,6 @@ class UserManager:
         except (json.JSONDecodeError, FileNotFoundError):
             return []
 
-    def load_pen_users(self):
-        try:
-            with open(self.pending_users_file, "r", encoding="utf-8") as f:  # FIXED: Указана кодировка
-                return json.load(f)
-        except (json.JSONDecodeError, FileNotFoundError):
-            return []
-
     def save_user(self, chat_id, username=None, name=None, fio=None, approved=False):
         users = self.load_users()
 
@@ -148,15 +141,6 @@ class UserManager:
         users = self.load_users()
         return any(user.get('chat_id') == chat_id and user.get('approved') for user in users)
 
-    def add_user_info(self, chat_id, username, name):
-        users = self.load_users()
-        for user in users:
-            if user.get('chat_id') == chat_id:
-                user['username'] = username
-                user['name'] = name
-                self._save_users(users)
-                return True
-        return False
 
     def get_user_info(self, chat_id):
         users = self.load_users()

@@ -31,13 +31,6 @@ def load_admins():
             return json.load(f).get('admins', [])
     return []
 
-def save_admin(chat_id):
-    admins = load_admins()
-    if str(chat_id) not in admins:
-        admins.append(str(chat_id))
-        with open("../../data/admins.json", "w") as f:
-            json.dump({'data/admins': admins}, f)
-
 def load_notification_time():
     if os.path.exists("../../config/notification_time.json"):
         with open("../../config/notification_time.json", "r") as f:
@@ -60,7 +53,6 @@ def load_schedule():
         with open("../../data/current_schedule.json", "r", encoding="utf-8") as f:
             return json.load(f)
     return {}
-
 
 def get_exchange_offers_file():
     """Возвращает путь к файлу с предложениями обмена"""
